@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas Helper",
+  "description": "A Chrome extension built to help students streamline Canvas assignment tracking!",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": []
+}
