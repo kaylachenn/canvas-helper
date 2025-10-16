@@ -1,12 +1,28 @@
 {
   "manifest_version": 3,
   "name": "Canvas Helper",
-  "description": "A Chrome extension built to help students streamline Canvas assignment tracking!",
+  "version": "1.0",
+  "description": "Fetch and display Canvas assignments with due dates",
   "action": {
-    "default_popup": "index.html"
+    "default_popup": "index.html",
+    "default_title": "Canvas Helper"
   },
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": []
+  "content_scripts": [
+    {
+      "matches": ["https://*.instructure.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://*.instructure.com/*"
+  ],
+  "permissions": [
+    "activeTab",
+    "cookies",
+    "scripting"
+  ]
 }
