@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../popup/popup.css';
+import './popup.css'; // Import for custom urgency classes
 
 const Popup = () => {
   const [assignments, setAssignments] = useState([]);
@@ -100,83 +100,88 @@ const Popup = () => {
   };
 
   return (
-    <div className="popup-container">
-      <div className="popup-header">
-        <h2>Canvas Helper</h2>
+    <div className="w-96 max-h-[600px] p-0 font-sans bg-white overflow-y-auto">
+      <div className="flex justify-between items-center px-5 py-4 bg-yellow-100 text-black m-0">
+        <h2 className="m-0 text-2xl font-normal font-['Playwrite_DE_SAS',cursive]">Canvas Helper</h2>
       </div>
 
       {loading && (
-        <div className="loading">
-          <div className="spinner"></div>
+        <div className="text-center py-10 px-5 text-gray-600">
+          <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
           <p>Fetching Assignments...</p>
         </div>
       )}
 
       {error && (
-        <div className="error">
+        <div className="text-center p-5 text-red-600 bg-red-50 mx-4 rounded-lg">
           <p>Error: {error}</p>
           {error.includes('refresh') && (
-            <button onClick={refreshPage} className="canvas-button">
+            <button 
+              onClick={refreshPage} 
+              className="bg-blue-500 text-white border-0 px-4 py-2 rounded cursor-pointer mx-2 my-1 hover:bg-blue-600 transition-colors"
+            >
               Refresh Page
             </button>
           )}
-          <button onClick={fetchAssignments} className="retry-button">
+          <button 
+            onClick={fetchAssignments} 
+            className="bg-gray-500 text-white border-0 px-4 py-2 rounded cursor-pointer mx-2 my-1 hover:bg-gray-600 transition-colors"
+          >
             Try Again
           </button>
         </div>
       )}
 
       {!loading && !error && (
-        <div className="assignments-list">
+        <div className="px-5 pb-5">
           {assignments.length === 0 ? (
-            <div className="no-assignments">
+            <div className="text-center py-10 px-5 text-gray-600">
               <p>No upcoming assignments in the next 30 days!</p>
               <small>You're all caught up!</small>
             </div>
           ) : (
             <>
-              <div className="assignments-count">
+              <div className="text-center text-gray-600 text-sm mb-4 p-2 bg-gray-100 rounded">
                 {assignments.length} assignment{assignments.length !== 1 ? 's' : ''} due in the next 30 days
               </div>
               {assignments.map((assignment) => (
                 <div 
                   key={`${assignment.courseId}-${assignment.id}`} 
-                  className={`assignment-item urgency-${assignment.urgency}`}
+                  className={`border border-gray-200 rounded-lg p-4 mb-3 bg-white transition-all duration-200 relative hover:shadow-lg hover:-translate-y-0.5 urgency-${assignment.urgency}`}
                 >
-                  <div className="assignment-header">
-                    <div className="assignment-name">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
                       <a 
                         href={assignment.htmlUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         title="Open assignment in Canvas"
+                        className="font-semibold text-base text-gray-800 no-underline hover:text-blue-500 hover:underline"
                       >
                         {assignment.title}
                       </a>
                     </div>
-                    <div className="urgency-badge">
+                    <div className="text-xs font-bold px-2 py-1 rounded bg-gray-200 text-gray-700 ml-2">
                       {getUrgencyLabel(assignment.urgency)}
                     </div>
                   </div>
                   
-                  <div className="assignment-details">
-                    <div className="detail-row">
-                      <span className="label">Course: </span>
-                      <span className="value">{assignment.courseName}</span>
+                  <div className="space-y-1">
+                    <div className="flex">
+                      <span className="text-gray-500 text-sm font-medium min-w-20">Course: </span>
+                      <span className="text-gray-700 text-sm">{assignment.courseName}</span>
                     </div>
                     
-                    <div className="detail-row">
-                      <span className="label">Due: </span>
-                      <span className="value">{formatDueDate(assignment.dueDate)}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 text-sm font-medium min-w-20">Due: </span>
+                      <span className="text-gray-700 text-sm">{formatDueDate(assignment.dueDate)}</span>
                     </div>
                     
-                    <div className="detail-row">
-                      <span className="label">Start by: </span>
-                      <span className="value">{formatStartDate(assignment.suggestedStartDate)}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 text-sm font-medium min-w-20">Start by: </span>
+                      <span className="text-gray-700 text-sm">{formatStartDate(assignment.suggestedStartDate)}</span>
                     </div>
-                    
                   </div>
-              
                 </div>
               ))}
             </>
