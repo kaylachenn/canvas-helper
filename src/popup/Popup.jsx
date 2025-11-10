@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import './popup.css'; // Import for custom urgency classes
+import './popup.css';
+import { FaUser } from "react-icons/fa6";
 
 const Popup = () => {
   const [assignments, setAssignments] = useState([]);
@@ -100,15 +101,16 @@ const Popup = () => {
   };
 
   return (
-    <div className="w-96 max-h-[600px] p-0 font-sans bg-white overflow-y-auto">
-      <div className="flex justify-between items-center px-5 py-4 bg-yellow-100 text-black m-0">
-        <h2 className="m-0 text-2xl font-normal font-['Playwrite_DE_SAS',cursive]">Canvas Helper</h2>
+    <div className="w-96 max-h-[600px] p-0 font-['Open_Sans',sans-serif] bg-white overflow-y-auto pb-10px">
+      <div className="flex justify-between items-center px-5 py-4 bg-[#d8dddd] text-[#798e9d] m-0 mb-4">
+        <h2 className="m-0 text-2xl font-semibold italic font-['Playfair_Display',serif]">Canvas Helper</h2>
+        <FaUser />
       </div>
 
       {loading && (
         <div className="text-center py-10 px-5 text-gray-600">
           <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Fetching Assignments...</p>
+          <p className="font-medium italic font-['Playfair_Display',serif]">Fetching Assignments...</p>
         </div>
       )}
 
@@ -133,17 +135,7 @@ const Popup = () => {
       )}
 
       {!loading && !error && (
-        <div className="px-5 pb-5">
-          {assignments.length === 0 ? (
-            <div className="text-center py-10 px-5 text-gray-600">
-              <p>No upcoming assignments in the next 30 days!</p>
-              <small>You're all caught up!</small>
-            </div>
-          ) : (
-            <>
-              <div className="text-center text-gray-600 text-sm mb-4 p-2 bg-gray-100 rounded">
-                {assignments.length} assignment{assignments.length !== 1 ? 's' : ''} due in the next 30 days
-              </div>
+        <div className="px-5 pb-5 pt-4">
               {assignments.map((assignment) => (
                 <div 
                   key={`${assignment.courseId}-${assignment.id}`} 
@@ -184,8 +176,6 @@ const Popup = () => {
                   </div>
                 </div>
               ))}
-            </>
-          )}
         </div>
       )}
     </div>
