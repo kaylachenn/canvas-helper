@@ -37,7 +37,7 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
 
   async function fetchCourseAssignments(courseId) {
     try {
-      return await fetchCanvasAPI(`/api/v1/courses/${courseId}/assignments?per_page=50`);
+      return await fetchCanvasAPI(`/api/v1/courses/${courseId}/assignments?include[]=submission&per_page=50`);
     } catch (error) {
       console.error(`Error fetching assignments for course ${courseId}:`, error);
       return [];
@@ -97,15 +97,29 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
       // fetch assignments for each course
       const assignmentPromises = courses.map(async (course) => {
         const assignments = await fetchCourseAssignments(course.id);
-        return assignments.map(assignment => ({
-          id: assignment.id,
-          title: assignment.name,
-          dueDate: assignment.due_at,
-          courseName: course.name,
-          courseId: course.id,
-          htmlUrl: assignment.html_url,
-          points: assignment.points_possible
-        }));
+        return assignments
+          .filter(assignment => {
+            // filter out completed assignments
+            const submission = assignment.submission;
+            if (!submission) return true; // No submission data means not completed
+            
+            // check if assignment is submitted and graded, or marked as complete
+            const isSubmitted = submission.submitted_at !== null;
+            const isGraded = submission.grade !== null;
+            const workflowState = submission.workflow_state;
+            
+            // exclude if submitted, unless it's unsubmitted or pending
+            return !isSubmitted || workflowState === 'unsubmitted';
+          })
+          .map(assignment => ({
+            id: assignment.id,
+            title: assignment.name,
+            dueDate: assignment.due_at,
+            courseName: course.name,
+            courseId: course.id,
+            htmlUrl: assignment.html_url,
+            points: assignment.points_possible
+          }));
       });
 
       const assignmentArrays = await Promise.all(assignmentPromises);
