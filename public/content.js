@@ -94,6 +94,24 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
         throw new Error('No courses found');
       }
 
+      // Get user preferences
+      const preferences = await new Promise((resolve) => {
+        if (chrome?.storage?.sync) {
+          chrome.storage.sync.get(['bufferDays', 'enableAI'], (result) => {
+            resolve({
+              bufferDays: result.bufferDays !== undefined ? result.bufferDays : 3,
+              enableAI: result.enableAI || false
+            });
+          });
+        } else {
+          // Fallback defaults
+          resolve({
+            bufferDays: 3,
+            enableAI: false
+          });
+        }
+      });
+
       // fetch assignments for each course
       const assignmentPromises = courses.map(async (course) => {
         const assignments = await fetchCourseAssignments(course.id);
@@ -111,15 +129,27 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
             // exclude if submitted, unless it's unsubmitted or pending
             return !isSubmitted || workflowState === 'unsubmitted';
           })
-          .map(assignment => ({
-            id: assignment.id,
-            title: assignment.name,
-            dueDate: assignment.due_at,
-            courseName: course.name,
-            courseId: course.id,
-            htmlUrl: assignment.html_url,
-            points: assignment.points_possible
-          }));
+          .map(assignment => {
+            // Calculate suggested start date based on user's buffer preference
+            let suggestedStartDate = null;
+            if (assignment.due_at) {
+              const dueDate = new Date(assignment.due_at);
+              const startDate = new Date(dueDate);
+              startDate.setDate(startDate.getDate() - preferences.bufferDays);
+              suggestedStartDate = startDate.toISOString();
+            }
+
+            return {
+              id: assignment.id,
+              title: assignment.name,
+              dueDate: assignment.due_at,
+              courseName: course.name,
+              courseId: course.id,
+              htmlUrl: assignment.html_url,
+              points: assignment.points_possible,
+              suggestedStartDate: suggestedStartDate
+            };
+          });
       });
 
       const assignmentArrays = await Promise.all(assignmentPromises);
@@ -142,7 +172,23 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
           // only include assignments due within the next 30 days
           return dueDate <= oneMonthFromNow;
         })
-
+        .map(assignment => {
+          // Calculate urgency based on days until due and buffer days
+          const dueDate = new Date(assignment.dueDate);
+          const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+          const bufferDays = preferences.bufferDays;
+          
+          let urgency = 'low';
+          if (daysUntilDue <= bufferDays) {
+            urgency = 'critical'; // Due within or past buffer period
+          } else if (daysUntilDue <= bufferDays + 2) {
+            urgency = 'high'; // Due shortly after buffer period
+          } else if (daysUntilDue <= bufferDays + 5) {
+            urgency = 'medium'; // Due within a week of buffer period
+          }
+          
+          return { ...assignment, urgency };
+        })
         .sort((a, b) => {
           // sort by urgency first, then by due date
           const urgencyOrder = { 'critical': 0, 'high': 1, 'medium': 2, 'low': 3 };

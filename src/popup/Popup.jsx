@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './popup.css';
-import { FaUser } from "react-icons/fa6";
+import { FaUser} from "react-icons/fa";
+import Preferences from './Preferences';
 
 const Popup = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showPreferences, setShowPreferences] = useState(false);
 
   const fetchAssignments = async () => {
     setLoading(true);
@@ -100,11 +102,26 @@ const Popup = () => {
     });
   };
 
+  if (showPreferences) {
+    return <Preferences onBack={() => {
+      setShowPreferences(false);
+      fetchAssignments(); // Refresh assignments when returning from preferences
+    }} />;
+  }
+
   return (
     <div className="w-96 max-h-[600px] p-0 font-['Open_Sans',sans-serif] bg-white overflow-y-auto pb-10px">
       <div className="flex justify-between items-center px-5 py-4 bg-[#d8dddd] text-[#798e9d] m-0 mb-4">
         <h2 className="m-0 text-2xl font-semibold italic font-['Playfair_Display',serif]">Canvas Helper</h2>
-        <FaUser />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowPreferences(true)}
+            className="p-2 hover:bg-gray-300 rounded-full transition-colors"
+            title="Settings"
+          >
+            <FaUser className="text-lg" />
+          </button>
+        </div>
       </div>
 
       {loading && (

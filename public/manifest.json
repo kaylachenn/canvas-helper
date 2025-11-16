@@ -33,6 +33,7 @@
   "permissions": [
     "activeTab",
     "cookies",
-    "scripting"
+    "scripting",
+    "storage"
   ]
 }
