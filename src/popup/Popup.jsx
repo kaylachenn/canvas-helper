@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './popup.css';
-import { FaUser} from "react-icons/fa";
+import { FaUser, FaRobot } from "react-icons/fa";
 import Preferences from './Preferences';
 
 const Popup = () => {
@@ -105,7 +105,7 @@ const Popup = () => {
   if (showPreferences) {
     return <Preferences onBack={() => {
       setShowPreferences(false);
-      fetchAssignments(); // Refresh assignments when returning from preferences
+      fetchAssignments(); // refresh assignments when returning from preferences
     }} />;
   }
 
@@ -126,18 +126,18 @@ const Popup = () => {
 
       {loading && (
         <div className="text-center py-10 px-5 text-gray-600">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-8 h-8 border-2 border-gray-200 border-t-[#798e9d] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="font-medium italic font-['Playfair_Display',serif]">Fetching Assignments...</p>
         </div>
       )}
 
       {error && (
         <div className="text-center p-5 text-red-600 bg-red-50 mx-4 rounded-lg">
-          <p>Error: {error}</p>
+          <p className="font-medium italic font-['Playfair_Display',serif]">Error: {error}</p>
           {error.includes('refresh') && (
             <button 
               onClick={refreshPage} 
-              className="bg-blue-500 text-white border-0 px-4 py-2 rounded cursor-pointer mx-2 my-1 hover:bg-blue-600 transition-colors"
+              className="bg-blue-500 text-white border-0 px-4 py-2 rounded cursor-pointer mx-2 my-1 hover:bg-[#798e9d] transition-colors"
             >
               Refresh Page
             </button>
@@ -153,46 +153,142 @@ const Popup = () => {
 
       {!loading && !error && (
         <div className="px-5 pb-5 pt-4">
-              {assignments.map((assignment) => (
-                <div 
-                  key={`${assignment.courseId}-${assignment.id}`} 
-                  className={`border border-gray-200 rounded-lg p-4 mb-3 bg-white transition-all duration-200 relative hover:shadow-lg hover:-translate-y-0.5 urgency-${assignment.urgency}`}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <a 
-                        href={assignment.htmlUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        title="Open assignment in Canvas"
-                        className="font-semibold text-base text-gray-800 no-underline hover:text-blue-500 hover:underline"
+          {(() => {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            today.setHours(0, 0, 0, 0); // set to start of today
+
+            // group the  assignments based on start date
+            const startToday = assignments.filter(a => {
+              if (!a.suggestedStartDate) return true; // so start date means to start immediately
+              const startDate = new Date(a.suggestedStartDate);
+              startDate.setHours(0, 0, 0, 0); // set to start of day for comparison
+              return startDate <= today; // include if start date is today or earlier
+            });
+
+            const upcoming = assignments.filter(a => {
+              if (!a.suggestedStartDate) return false; // already included in startToday
+              const startDate = new Date(a.suggestedStartDate);
+              startDate.setHours(0, 0, 0, 0);
+              return startDate > today; // only include future start dates
+            });
+
+            return (
+              <>
+                {startToday.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3 text-gray-800 font-['Playfair_Display',serif] italic border-b-2 border-gray-400 pb-1">
+                      Start Working Now ({startToday.length})
+                    </h3>
+                    {startToday.map((assignment) => (
+                      <div 
+                        key={`${assignment.courseId}-${assignment.id}`} 
+                        className={`border border-gray-200 rounded-lg p-4 mb-3 bg-white transition-all duration-200 relative hover:shadow-lg hover:-translate-y-0.5 urgency-${assignment.urgency}`}
                       >
-                        {assignment.title}
-                      </a>
-                    </div>
-                    <div className="text-xs font-bold px-2 py-1 rounded bg-gray-200 text-gray-700 ml-2">
-                      {getUrgencyLabel(assignment.urgency)}
-                    </div>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <a 
+                              href={assignment.htmlUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              title="Open assignment in Canvas"
+                              className="font-semibold text-base text-gray-800 no-underline hover:text-[#798e9d] hover:underline"
+                            >
+                              {assignment.title}
+                            </a>
+                          </div>
+                          <div className="text-xs font-bold px-2 py-1 rounded bg-gray-200 text-gray-700 ml-2">
+                            {getUrgencyLabel(assignment.urgency)}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex">
+                            <span className="text-gray-500 text-sm font-medium min-w-20">Course: </span>
+                            <span className="text-gray-700 text-sm">{assignment.courseName}</span>
+                          </div>
+                          
+                          <div className="flex">
+                            <span className="text-gray-500 text-sm font-medium min-w-20">Due: </span>
+                            <span className="text-gray-700 text-sm">{formatDueDate(assignment.dueDate)}</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <span className="text-gray-500 text-sm font-medium min-w-20">Start by: </span>
+                            <span className="text-gray-700 text-sm">{formatStartDate(assignment.suggestedStartDate)}</span>
+                            {assignment.aiAnalyzed && (
+                              <span className="ml-2 text-[#798e9d] text-xs flex items-center gap-1" title="AI-analyzed start date">
+                                <FaRobot /> AI Analyzed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  
-                  <div className="space-y-1">
-                    <div className="flex">
-                      <span className="text-gray-500 text-sm font-medium min-w-20">Course: </span>
-                      <span className="text-gray-700 text-sm">{assignment.courseName}</span>
-                    </div>
-                    
-                    <div className="flex">
-                      <span className="text-gray-500 text-sm font-medium min-w-20">Due: </span>
-                      <span className="text-gray-700 text-sm">{formatDueDate(assignment.dueDate)}</span>
-                    </div>
-                    
-                    <div className="flex">
-                      <span className="text-gray-500 text-sm font-medium min-w-20">Start by: </span>
-                      <span className="text-gray-700 text-sm">{formatStartDate(assignment.suggestedStartDate)}</span>
-                    </div>
+                )}
+
+                {upcoming.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3 text-gray-800 font-['Playfair_Display',serif] italic border-b-2 border-gray-400 pb-1">
+                      Upcoming Assignments ({upcoming.length})
+                    </h3>
+                    {upcoming.map((assignment) => (
+                      <div 
+                        key={`${assignment.courseId}-${assignment.id}`} 
+                        className={`border border-gray-200 rounded-lg p-4 mb-3 bg-white transition-all duration-200 relative hover:shadow-lg hover:-translate-y-0.5 urgency-${assignment.urgency}`}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <a 
+                              href={assignment.htmlUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              title="Open assignment in Canvas"
+                              className="font-semibold text-base text-gray-800 no-underline hover:text-[#798e9d] hover:underline"
+                            >
+                              {assignment.title}
+                            </a>
+                          </div>
+                          <div className="text-xs font-bold px-2 py-1 rounded bg-gray-200 text-gray-700 ml-2">
+                            {getUrgencyLabel(assignment.urgency)}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex">
+                            <span className="text-gray-500 text-sm font-medium min-w-20">Course: </span>
+                            <span className="text-gray-700 text-sm">{assignment.courseName}</span>
+                          </div>
+                          
+                          <div className="flex">
+                            <span className="text-gray-500 text-sm font-medium min-w-20">Due: </span>
+                            <span className="text-gray-700 text-sm">{formatDueDate(assignment.dueDate)}</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <span className="text-gray-500 text-sm font-medium min-w-20">Start by: </span>
+                            <span className="text-gray-700 text-sm">{formatStartDate(assignment.suggestedStartDate)}</span>
+                            {assignment.aiAnalyzed && (
+                              <span className="ml-2 text-[#798e9d] text-xs flex items-center gap-1" title="AI-analyzed start date">
+                                <FaRobot /> AI Analyzed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
+                )}
+
+                {assignments.length === 0 && (
+                  <div className="text-center py-10 text-gray-500">
+                    <p className="font-medium italic font-['Playfair_Display',serif]">No upcoming assignments found!</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

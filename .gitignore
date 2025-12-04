@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# API Keys and secrets
+*.env
+.env.*
+**/gemini-service.js
+**/*apikey*.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

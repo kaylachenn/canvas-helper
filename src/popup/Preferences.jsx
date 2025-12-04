@@ -5,18 +5,22 @@ import './popup.css';
 const Preferences = ({ onBack }) => {
   const [bufferDays, setBufferDays] = useState(3);
   const [enableAI, setEnableAI] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [saved, setSaved] = useState(false);
 
   // Load preferences from Chrome storage on mount
   useEffect(() => {
     if (chrome?.storage?.sync) {
-      chrome.storage.sync.get(['bufferDays', 'enableAI'], (result) => {
+      chrome.storage.sync.get(['bufferDays', 'enableAI', 'geminiApiKey'], (result) => {
         console.log('Loaded preferences:', result);
         if (result.bufferDays !== undefined) {
           setBufferDays(parseInt(result.bufferDays));
         }
         if (result.enableAI !== undefined) {
           setEnableAI(result.enableAI);
+        }
+        if (result.geminiApiKey !== undefined) {
+          setGeminiApiKey(result.geminiApiKey);
         }
       });
     }
@@ -26,12 +30,13 @@ const Preferences = ({ onBack }) => {
     if (chrome?.storage?.sync) {
       chrome.storage.sync.set({
         bufferDays: parseInt(bufferDays),
-        enableAI: enableAI
+        enableAI: enableAI,
+        geminiApiKey: geminiApiKey
       }, () => {
         if (chrome.runtime.lastError) {
           console.error('Error saving preferences:', chrome.runtime.lastError);
         } else {
-          console.log('Preferences saved successfully:', { bufferDays: parseInt(bufferDays), enableAI });
+          console.log('Preferences saved successfully:', { bufferDays: parseInt(bufferDays), enableAI, hasApiKey: !!geminiApiKey });
           setSaved(true);
           setTimeout(() => {
             setSaved(false);
@@ -41,7 +46,7 @@ const Preferences = ({ onBack }) => {
       });
     } else {
       // Fallback for development environment
-      console.log('Preferences saved (dev mode):', { bufferDays, enableAI });
+      console.log('Preferences saved (dev mode):', { bufferDays, enableAI, geminiApiKey });
       setSaved(true);
       setTimeout(() => {
         setSaved(false);
@@ -79,7 +84,7 @@ const Preferences = ({ onBack }) => {
               max="14"
               value={bufferDays}
               onChange={(e) => setBufferDays(parseInt(e.target.value) || 0)}
-              className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798e9d]"
             />
             <span className="text-gray-600">days before due date</span>
           </div>
@@ -91,12 +96,12 @@ const Preferences = ({ onBack }) => {
         {/* AI Analyzer Toggle */}
         <div className="mb-6 pb-6 border-b border-gray-200">
           <label className="block text-gray-700 font-semibold mb-2">
-            AI Analyzer
+            AI Assignment Analyzer
           </label>
           <p className="text-sm text-gray-600 mb-3">
-            Use AI to analyze assignment difficulty and estimate completion time
+            Use Google Gemini AI to intelligently analyze assignment difficulty and suggest optimal start dates
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => setEnableAI(!enableAI)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -112,10 +117,29 @@ const Preferences = ({ onBack }) => {
             <span className="text-gray-700">
               {enableAI ? 'Enabled' : 'Disabled'}
             </span>
-            {!enableAI && (
-              <span className="text-xs text-gray-500 italic">(Coming soon)</span>
-            )}
           </div>
+          
+          {/* API Key Input */}
+          {enableAI && (
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Google Gemini API Key
+              </label>
+              <p className="text-xs text-gray-600 mb-2">
+                Get your free API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-[#798e9d] hover:underline">Google AI Studio</a>
+              </p>
+              <input
+                type="password"
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                placeholder="Enter your Gemini API key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#798e9d] text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Don't Worry! Your API key is stored securely in Chrome's sync storage.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Save Button */}

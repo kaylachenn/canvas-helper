@@ -44,42 +44,122 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
     }
   }
 
-  // assignment analysis
-  function analyzeAssignment(assignment) {
-    const title = assignment.title.toLowerCase();
-    let difficulty = 'medium';
-    let estimatedHours = 2;
-    let type = 'assignment';
 
-    // determine assignment type and difficulty from title
-    // will eventually use api to determine this
-    if (title.includes('quiz') || title.includes('test')) {
-      type = 'quiz';
-      difficulty = 'easy';
-      estimatedHours = 1;
-    } else if (title.includes('exam') || title.includes('midterm') || title.includes('final')) {
-      type = 'exam';
-      difficulty = 'hard';
-      estimatedHours = 6;
-    } else if (title.includes('essay') || title.includes('paper') || title.includes('report') || title.includes('presentation')) {
-      type = 'essay';
-      difficulty = 'hard';
-      estimatedHours = 8;
-    } else if (title.includes('project') || title.includes('presentation')) {
-      type = 'project';
-      difficulty = 'hard';
-      estimatedHours = 12;
-    } else if (title.includes('discussion') || title.includes('forum')) {
-      type = 'discussion';
-      difficulty = 'easy';
-      estimatedHours = 0.5;
-    } else if (title.includes('homework') || title.includes('hw')) {
-      type = 'homework';
-      difficulty = 'medium';
-      estimatedHours = 2;
+  // AI-powered assignment analysis with Gemini
+  async function analyzeAssignmentWithAI(assignment, apiKey) {
+    try {
+      const prompt = `Analyze this college assignment and provide a recommendation for how many days before the due date a student should start working on it.
+
+    Assignment Title: ${assignment.title}
+    Course: ${assignment.courseName}
+    Points: ${assignment.points || 'N/A'}
+
+    Consider the following factors:
+    - Assignment type (quiz, exam, essay, project, discussion, homework)
+    - Typical difficulty and time requirements
+    - Points value indicating importance
+
+    Respond with ONLY a single number representing the recommended number of days to start before the due date. For example: "5" means start 5 days before due date.`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Gemini API ${response.status} error:`, errorText);
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      console.log(`Gemini response for "${assignment.title}":`, aiResponse);
+      
+      // Extract number from response
+      const daysMatch = aiResponse.match(/(\d+)/);
+      if (daysMatch) {
+        const recommendedDays = parseInt(daysMatch[1]);
+        // Validate reasonable range (1-14 days)
+        return Math.min(Math.max(recommendedDays, 1), 14);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      return null;
+    }
+  }
+
+  //  analyze assignments with AI
+  async function analyzeAssignmentsWithAI(assignments, defaultBufferDays) {
+    // get the API key from storage
+    const apiKey = await new Promise((resolve) => {
+      if (chrome?.storage?.sync) {
+        chrome.storage.sync.get(['geminiApiKey'], (result) => {
+          if (result.geminiApiKey) {
+            console.log('Gemini API Key retrieved from storage. Length:', result.geminiApiKey.length);
+          } else {
+            console.warn('Gemini API Key not found in storage.');
+          }
+          resolve(result.geminiApiKey || null);
+        });
+      } else {
+        console.warn('chrome.storage.sync is not available');
+        resolve(null);
+      }
+    });
+
+    if (!apiKey) {
+      console.warn('No Gemini API key found, using default buffer days');
+      return assignments;
     }
 
-    return { type, difficulty, estimatedHours };
+    const analyzed = [];
+    
+    for (const assignment of assignments) {
+      console.log(`Analyzing assignment: "${assignment.title}"`);
+      const aiRecommendedDays = await analyzeAssignmentWithAI(assignment, apiKey);
+      
+      if (aiRecommendedDays !== null) {
+        console.log(`AI recommends ${aiRecommendedDays} days for "${assignment.title}"`);
+      } else {
+        console.log(`AI analysis failed, using default ${defaultBufferDays} days for "${assignment.title}"`);
+      }
+      
+      // use the AI recommendation if available, otherwise use the default buffer
+      const daysBeforeDue = aiRecommendedDays !== null ? aiRecommendedDays : defaultBufferDays;
+      
+      // calculate suggested start date
+      let suggestedStartDate = assignment.suggestedStartDate;
+      if (assignment.dueDate) {
+        const dueDate = new Date(assignment.dueDate);
+        const startDate = new Date(dueDate);
+        startDate.setDate(startDate.getDate() - daysBeforeDue);
+        suggestedStartDate = startDate.toISOString();
+      }
+      
+      analyzed.push({
+        ...assignment,
+        suggestedStartDate,
+        aiAnalyzed: aiRecommendedDays !== null,
+        recommendedBufferDays: daysBeforeDue
+      });
+      
+      // a small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    return analyzed;
   }
 
   async function fetchAllAssignments() {
@@ -153,14 +233,14 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
       });
 
       const assignmentArrays = await Promise.all(assignmentPromises);
-      const allAssignments = assignmentArrays.flat();
+      let allAssignments = assignmentArrays.flat();
 
       // filter assignments: only upcoming ones due within the next 30 days
       const now = new Date();
       const oneMonthFromNow = new Date();
       oneMonthFromNow.setDate(now.getDate() + 30);
 
-      const upcomingAssignments = allAssignments
+      let upcomingAssignments = allAssignments
         .filter(assignment => {
           if (!assignment.dueDate) return false;
           
@@ -171,7 +251,15 @@ if (typeof window.canvasHelperLoaded === 'undefined') {
           
           // only include assignments due within the next 30 days
           return dueDate <= oneMonthFromNow;
-        })
+        });
+
+      // If AI is enabled, analyze only the filtered upcoming assignments
+      if (preferences.enableAI) {
+        console.log('AI analysis enabled - analyzing assignments with Gemini...');
+        upcomingAssignments = await analyzeAssignmentsWithAI(upcomingAssignments, preferences.bufferDays);
+      }
+
+      upcomingAssignments = upcomingAssignments
         .map(assignment => {
           // Calculate urgency based on days until due and buffer days
           const dueDate = new Date(assignment.dueDate);
